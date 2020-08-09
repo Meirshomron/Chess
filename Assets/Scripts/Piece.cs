@@ -11,8 +11,10 @@ public class PieceData
     public int playerIdx;
     public int currentIndex;
     public bool madeFirstMove;
+    public bool hasPostPlayAction;
     public bool isKing;
-    public string name;
+    public string prefabName;
+    public string gameObjectName;
     public bool isDead;
 }
 
@@ -28,9 +30,10 @@ public class Piece : MonoBehaviour
     protected virtual void Start()
     {
         pieceData.madeFirstMove = false;
+        pieceData.hasPostPlayAction = false;
         pieceData.isKing = false;
         pieceData.isDead = false;
-        pieceData.name = gameObject.name;
+        pieceData.gameObjectName = gameObject.name;
         BoardController.Instance.SetPieceOnTile(pieceData.currentIndex, this);
     }
 
@@ -64,6 +67,9 @@ public class Piece : MonoBehaviour
     /// </summary>
     public virtual void SetMoves(){}
 
+
+    public virtual void SetPostPlayAction(int previousTileIdx, int targetTileIdx) {}
+
     void OnDisable()
     {
         pieceData.isDead = true;
@@ -79,7 +85,7 @@ public class Piece : MonoBehaviour
         pieceData.currentIndex = pieceDataToSet.currentIndex;
         pieceData.madeFirstMove = pieceDataToSet.madeFirstMove;
         pieceData.isKing = pieceDataToSet.isKing;
-        pieceData.name = pieceDataToSet.name;
         pieceData.isDead = pieceDataToSet.isDead;
+        pieceData.hasPostPlayAction = pieceDataToSet.hasPostPlayAction;
     }
 }

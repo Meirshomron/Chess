@@ -67,25 +67,49 @@ public class Settings : MonoBehaviour
         SavedGame lastSavedGame = (SavedGame)bf.Deserialize(file);
         file.Close();
 
-        // Update the data and status of every piece.
-        List<Piece> allPieces = BoardController.Instance.GetAllPieces();
-        foreach (Piece piece in allPieces)
+        // All the pieces in hierarchy.
+        // If the saved piece is in the hierarchy - then just update its data.
+        // Else - Create a new piece and set under the hierarchy.
+        List<Piece> allPiecesInHierarchy = BoardController.Instance.GetAllPieces();
+
+        foreach (Piece piece in allPiecesInHierarchy)
         {
-            foreach (PieceData savedPieceData in lastSavedGame.allPiecesData)
+            // Set all the pieces in the hierarchy as dead.
+            piece.gameObject.SetActive(false);
+
+            // Try to find the piece from the hierarchy in the saved game. If we've found - then update its data.
+            PieceData currentPieceData;
+            for (int i = 0; i < lastSavedGame.allPiecesData.Count; i++)
             {
-                if (savedPieceData.name == piece.gameObject.name)
+                currentPieceData = lastSavedGame.allPiecesData[i];
+                if (currentPieceData.gameObjectName == piece.gameObject.name)
                 {
-                    if (savedPieceData.isDead)
-                    {
-                        piece.gameObject.SetActive(false);
-                    }
-                    else
+                    if (!currentPieceData.isDead)
                     {
                         piece.gameObject.SetActive(true);
-                        piece.SetPieceData(savedPieceData);
+                        piece.SetPieceData(currentPieceData);
                     }
+
+                    // Remove it so we keep track of the saved pieces that aren't in the hierarchy.
+                    lastSavedGame.allPiecesData.RemoveAt(i);
+                    i--;
                 }
             }
+        }
+
+        // Create all the saved pieces that don't exist in the hierarchy.
+        string currentPlayerName;
+        GameObject newPiece, parentObj;
+        foreach (PieceData pieceData in lastSavedGame.allPiecesData)
+        {
+            currentPlayerName = BoardController.Instance.GetPlayerName(pieceData.playerIdx);
+            print("Instantiate " + currentPlayerName + "/" + pieceData.prefabName);
+            newPiece = Instantiate(Resources.Load(currentPlayerName + "/" + pieceData.prefabName) as GameObject);
+            parentObj = BoardController.Instance.GetParentObjByPlayerIdx(pieceData.playerIdx);
+            newPiece.name = pieceData.gameObjectName;
+            newPiece.transform.SetParent(parentObj.transform);
+
+            newPiece.GetComponent<Piece>().SetPieceData(pieceData);
         }
 
         // Reset the board based on the current data of all the pieces.

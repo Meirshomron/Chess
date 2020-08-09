@@ -8,6 +8,7 @@ public class BoardController : MonoBehaviour
     public int PlayerTurnIdx { get => playerTurnIdx; set => playerTurnIdx = value; }
     public Piece CurrentClickedPiece { get => currentClickedPiece; set => currentClickedPiece = value; }
     public bool GameIsOver { get => gameIsOver; set => gameIsOver = value; }
+    public int MoveCount { get => moveCount; set => moveCount = value; }
 
     // The parents of all the game pieces by player index.
     [SerializeField] private GameObject playerOne = null;
@@ -24,6 +25,8 @@ public class BoardController : MonoBehaviour
     private Piece currentClickedPiece;
     private int playerTurnIdx;
     private bool gameIsOver;
+    private bool turnDisabled;
+    private int moveCount;
 
     private void Awake()
     {
@@ -47,10 +50,17 @@ public class BoardController : MonoBehaviour
         SetUserTurnText();
 
         GameIsOver = false;
+        turnDisabled = false;
+        MoveCount = 1;
     }
 
     private void Update()
     {
+        if (turnDisabled)
+        {
+            return;
+        }
+
         if (Input.GetMouseButtonDown(0))
         {
             Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
@@ -84,7 +94,7 @@ public class BoardController : MonoBehaviour
 
             if (Physics.Raycast(ray, out hit, 100, layerMask))
             {
-                print("Pressed tile " + hit.transform.gameObject.name);
+                //print("Pressed tile " + hit.transform.gameObject.name);
 
                 int.TryParse(hit.transform.gameObject.name, out int targetTileName);
                 if (CurrentClickedPiece)
@@ -163,10 +173,13 @@ public class BoardController : MonoBehaviour
     /// <summary>
     /// Perform the player's turn action. 
     /// </summary>
-    /// <param name="targetTileName"> The target tile of the currently selected piece. </param>
-    private void SetPlayAction(int targetTileName, Piece attackedPiece = null)
+    /// <param name="targetTileIdx"> The target tile index of the currently selected piece. </param>
+    private void SetPlayAction(int targetTileIdx, Piece attackedPiece = null)
     {
-        print("SetPlayAction: from " + CurrentClickedPiece.pieceData.currentIndex + " to " + targetTileName);
+        print("SetPlayAction: from " + CurrentClickedPiece.pieceData.currentIndex + " to " + targetTileIdx);
+
+        // Disable anymore player actions intill we set the other user's turn.
+        turnDisabled = true;
 
         if (attackedPiece)
         {
@@ -176,21 +189,36 @@ public class BoardController : MonoBehaviour
                 SetUserEndGameText();
                 GameIsOver = true;
             }
-            
-        }
-
-        PlayerTurnIdx *= -1;
-
-        if (!GameIsOver)
-        {
-            SetUserTurnText();
         }
 
         CurrentClickedPiece.pieceData.madeFirstMove = true;
         UnpickCurrentPieceMarkers();
         UnpickCurrentPieceMaterial();
-        MovePiece(CurrentClickedPiece.pieceData.currentIndex, targetTileName, CurrentClickedPiece);
+        int previousTileIdx = CurrentClickedPiece.pieceData.currentIndex;
+        MovePiece(previousTileIdx, targetTileIdx, CurrentClickedPiece);
+
+        if (CurrentClickedPiece.pieceData.hasPostPlayAction)
+        {
+            CurrentClickedPiece.SetPostPlayAction(previousTileIdx, targetTileIdx);
+        }
+        else
+        {
+            SetNextPlayerTurn();
+        }
+
         CurrentClickedPiece = null;
+    }
+
+    public void SetNextPlayerTurn()
+    {
+        if (!GameIsOver)
+        {
+            //print("SetNextPlayerTurn");
+            MoveCount++;
+            turnDisabled = false;
+            PlayerTurnIdx *= -1;
+            SetUserTurnText();
+        }
     }
 
     /// <summary>
@@ -253,11 +281,11 @@ public class BoardController : MonoBehaviour
     /// <summary>
     /// Conversion from the player's index of 1, -1 to a string representations.
     /// </summary>
-    private string GetCurrentPlayerName()
+    public string GetPlayerName(int playerIdx)
     {
         string playerName;
 
-        if (PlayerTurnIdx == 1)
+        if (playerIdx == 1)
         {
             playerName = "White";
         }
@@ -267,6 +295,11 @@ public class BoardController : MonoBehaviour
         }
         
         return playerName;
+    }
+
+    public string GetCurrentPlayerName()
+    {
+        return GetPlayerName(PlayerTurnIdx);
     }
 
     /// <summary>
@@ -332,6 +365,18 @@ public class BoardController : MonoBehaviour
         }
 
         return piecesData;
+    }
+
+    public GameObject GetParentObjByPlayerIdx(int playerIdx)
+    {
+        if (playerIdx == 1)
+        {
+            return playerOne;
+        }
+        else
+        {
+            return playerTwo;
+        }
     }
 
     /// <summary>
