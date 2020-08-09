@@ -16,7 +16,7 @@ To run the project, download/clone and run from unity.
 
 
 ## Future Possible Upgrades
-- [x] Chess AI.
+- [] Chess AI.
 - Multiplayer.
 - Sounds.
 - Start game screen.
