@@ -16,17 +16,17 @@ To run the project, download/clone and run from unity.
 
 
 ## Future Possible Upgrades
-- [v] Chess AI.
-- Multiplayer.
-- Sounds.
-- Start game screen.
-- Animation of piece movement.
-- Explosion animation when a piece is hit.
-- Turn countdown time limit.
-- Create a mobile version - currently it's written for PC.
-- Pawn promotion rule.
-- Castling rule.
-- En Passant rule.
+- [ ] Chess AI.
+- [ ] Multiplayer.
+- [ ] Sounds.
+- [ ] Start game screen.
+- [ ] Animation of piece movement.
+- [ ] Explosion animation when a piece is hit.
+- [ ] Turn countdown time limit.
+- [ ] Create a mobile version - currently it's written for PC.
+- [x] Pawn promotion rule.
+- [ ] Castling rule.
+- [ ] En Passant rule.
 
 ##  Images:
 <img  src="Images/Chess_1.png" width="600" >
