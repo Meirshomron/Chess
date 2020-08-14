@@ -1,8 +1,5 @@
 ﻿
 
-using System.Collections.Generic;
-using UnityEngine;
-
 public class King : Piece
 {
     protected override void Start()

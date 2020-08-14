@@ -9,7 +9,6 @@ public class BoardController : MonoBehaviour
     public GameModel GameModel { get; private set; }
     public Simulator Simulator { get; private set; }
 
-
     [SerializeField] private TextMeshProUGUI userTxt = null;
     [SerializeField] private Material originalMaterial = null;
     [SerializeField] private Material selectedMaterial = null;

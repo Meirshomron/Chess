@@ -12,9 +12,7 @@ public class Tile
 
 public class TilesMap : MonoBehaviour
 {
-    private static TilesMap _instance;
-
-    public static TilesMap Instance { get => _instance; }
+    public static TilesMap Instance { get; private set; }
 
     [SerializeField] private GameObject tilePrefab = null;
     public static int totalColomns = 8;
@@ -26,13 +24,13 @@ public class TilesMap : MonoBehaviour
 
     private void Awake()
     {
-        if (_instance != null && _instance != this)
+        if (Instance != null && Instance != this)
         {
             Destroy(this.gameObject);
             return;
         }
 
-        _instance = this;
+        Instance = this;
         tilesArr = new Tile[totalRows * totalColomns];
         CreateTileMap();
     }

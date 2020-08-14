@@ -94,7 +94,6 @@ public class Simulator : MonoBehaviour
         }
     }
 
-
     /// <summary>
     /// Un-simulate the simulated move.
     /// </summary>
