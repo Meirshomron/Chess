@@ -2,9 +2,13 @@
 
 public class Bishop : Piece
 {
-    public override void SetMoves()
+    public override void SetMoves(bool validateMoves)
     {
         //print("Bishop: SetMoves");
+
+        // Clear the current moves before re-calculating.
+        moves.Clear();
+        attackMoves.Clear();
 
         int tileIdx;
         int currentRow = pieceData.currentIndex / TilesMap.totalRows;
@@ -81,6 +85,13 @@ public class Bishop : Piece
             {
                 break;
             }
+        }
+
+        // This flag enables us to control the need to validate this piece's moves on the chack status of the player.
+        if (validateMoves)
+        {
+            ValidateMoves();
+            ValidateAttackMoves();
         }
     }
 }

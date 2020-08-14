@@ -132,7 +132,9 @@ MonoBehaviour:
     madeFirstMove: 0
     hasPostPlayAction: 0
     isKing: 0
+    movesAreHarmless: 0
     prefabName: QueenWhite
+    gameObjectName: 
     isDead: 0
 --- !u!65 &3236301995980150750
 BoxCollider:

@@ -1,42 +1,34 @@
 ﻿using System.Collections.Generic;
 using TMPro;
+using UnityEditorInternal;
 using UnityEngine;
 
 public class BoardController : MonoBehaviour
 {
-    public static BoardController Instance { get => _instance; }
-    public int PlayerTurnIdx { get => playerTurnIdx; set => playerTurnIdx = value; }
-    public Piece CurrentClickedPiece { get => currentClickedPiece; set => currentClickedPiece = value; }
-    public bool GameIsOver { get => gameIsOver; set => gameIsOver = value; }
-    public int MoveCount { get => moveCount; set => moveCount = value; }
+    public static BoardController Instance { get; private set; }
+    public GameModel GameModel { get; private set; }
+    public Simulator Simulator { get; private set; }
 
-    // The parents of all the game pieces by player index.
-    [SerializeField] private GameObject playerOne = null;
-    [SerializeField] private GameObject playerTwo = null;
 
     [SerializeField] private TextMeshProUGUI userTxt = null;
     [SerializeField] private Material originalMaterial = null;
     [SerializeField] private Material selectedMaterial = null;
-
-    private static BoardController _instance;
-
     private Color markedMoveTile;
     private Color markedAttackMoveTile;
-    private Piece currentClickedPiece;
-    private int playerTurnIdx;
-    private bool gameIsOver;
     private bool turnDisabled;
-    private int moveCount;
 
     private void Awake()
     {
-        if (_instance != null && _instance != this)
+        if (Instance != null && Instance != this)
         {
             Destroy(this.gameObject);
             return;
         }
 
-        _instance = this;
+        Instance = this;
+        GameModel = GetComponent<GameModel>();
+        Simulator = GetComponent<Simulator>();
+        GameModel.Init();
     }
 
     void Start()
@@ -45,18 +37,15 @@ public class BoardController : MonoBehaviour
         ColorUtility.TryParseHtmlString("#2FFF4D", out markedMoveTile);
         ColorUtility.TryParseHtmlString("#B32323", out markedAttackMoveTile);
 
-        // The starting player's index.
-        PlayerTurnIdx = 1;
+        // Set the turn text.
         SetUserTurnText();
 
-        GameIsOver = false;
         turnDisabled = false;
-        MoveCount = 1;
     }
 
     private void Update()
     {
-        if (turnDisabled)
+        if (turnDisabled || GameModel.GameIsOver)
         {
             return;
         }
@@ -75,15 +64,51 @@ public class BoardController : MonoBehaviour
                 Piece pieceClicked = hit.transform.gameObject.GetComponent<Piece>();
 
                 // Only enable clicking a piece if it's this palyer's turn.
-                if (PlayerTurnIdx == pieceClicked.pieceData.playerIdx)
+                if (GameModel.PlayerTurnIdx == pieceClicked.pieceData.playerIdx)
                 {
                     // Disable re-clicking the currently picked piece.
-                    if (CurrentClickedPiece != pieceClicked)
+                    if (GameModel.CurrentClickedPiece != pieceClicked)
                     {
-                        pieceClicked.SetMoves();
+                        bool playerInCheck = GameModel.GetCheckStatus(GameModel.PlayerTurnIdx);
+                        pieceClicked.SetMoves(true);
+
+                        // Only moves to get out of the check status are valid.
+                        if (playerInCheck && pieceClicked.moves.Count == 0 && pieceClicked.attackMoves.Count == 0)
+                        {
+                            print("Player " + GameModel.PlayerTurnIdx + " in check with no moves on piece clicked, check if check mate.");
+                            bool isCheckMate = true;
+                            List<Piece> pieces = GameModel.GetPlayerPieces(GameModel.PlayerTurnIdx);
+
+                            foreach (Piece piece in pieces)
+                            {
+                                if (piece.pieceData.isDead)
+                                    continue;
+
+                                // In case the previous simulations changed the current piece's moves.
+                                piece.SetMoves(true);
+
+                                if (piece.moves.Count != 0 || piece.attackMoves.Count != 0)
+                                {
+                                    isCheckMate = false;
+                                }
+                            }
+
+                            // No piece can move to save the king = check mate.
+                            if (isCheckMate)
+                            {
+                                print("----------------------- isCheckMate -----------------------");
+                                GameModel.GameIsOver = true;
+                                return;
+                            }
+                            // In case the simulations changed the picked piece's moves.
+                            else
+                            {
+                                pieceClicked.SetMoves(true);
+                            }
+                        }
                         OnPieceClicked(pieceClicked);
 
-                        // If we've clicked a valid piece - don't check for a tile clicked.
+                        // If we've clicked a valid piece - don't check for a tile clicked in this iteration of Update().
                         return;
                     }
                 }
@@ -97,15 +122,15 @@ public class BoardController : MonoBehaviour
                 //print("Pressed tile " + hit.transform.gameObject.name);
 
                 int.TryParse(hit.transform.gameObject.name, out int targetTileName);
-                if (CurrentClickedPiece)
+                if (GameModel.CurrentClickedPiece)
                 {
-                    if (CurrentClickedPiece.moves.Contains(targetTileName))
+                    if (GameModel.CurrentClickedPiece.moves.Contains(targetTileName))
                     {
                         SetPlayAction(targetTileName);
                     }
-                    else if (CurrentClickedPiece.attackMoves.Contains(targetTileName))
+                    else if (GameModel.CurrentClickedPiece.attackMoves.Contains(targetTileName))
                     {
-                        Piece attackedPiece = GetPieceAtTileIdx(-1 * CurrentClickedPiece.pieceData.playerIdx, targetTileName);
+                        Piece attackedPiece = GetPieceAtTileIdx(-1 * GameModel.CurrentClickedPiece.pieceData.playerIdx, targetTileName);
                         SetPlayAction(targetTileName, attackedPiece);
                     }
                 }
@@ -119,15 +144,16 @@ public class BoardController : MonoBehaviour
     /// <param name="pieceClicked"> The currently picked piece. </param>
     private void OnPieceClicked(Piece pieceClicked)
     {
-        //print("BoardPieces: OnPieceClicked " + pieceClicked.currentIndex);
+        print("BoardPieces: OnPieceClicked " + pieceClicked.pieceData.gameObjectName);
 
-        if (CurrentClickedPiece && CurrentClickedPiece.pieceData.currentIndex != pieceClicked.pieceData.currentIndex)
+        // Unpick previous piece.
+        if (GameModel.CurrentClickedPiece && GameModel.CurrentClickedPiece.pieceData.currentIndex != pieceClicked.pieceData.currentIndex)
         {
             UnpickCurrentPieceMarkers();
             UnpickCurrentPieceMaterial();
         }
 
-        CurrentClickedPiece = pieceClicked;
+        GameModel.CurrentClickedPiece = pieceClicked;
 
         SetSelectedMaterial();
 
@@ -143,18 +169,18 @@ public class BoardController : MonoBehaviour
     }
 
     /// <summary>
-    /// Un-mark the current markers of the currentClickedPiece.
+    /// Un-mark the current markers of the CurrentClickedPiece.
     /// </summary>
     private void UnpickCurrentPieceMarkers()
     {
-        //print("BoardPieces: UnpickCurrentPieceMarkers " + currentClickedPiece.currentIndex);
+        //print("BoardPieces: UnpickCurrentPieceMarkers " + CurrentClickedPiece.currentIndex);
 
-        foreach (int move in CurrentClickedPiece.moves)
+        foreach (int move in GameModel.CurrentClickedPiece.moves)
         {
             TilesMap.Instance.SetTileOrigColor(move);
         }
 
-        foreach (int attackMove in CurrentClickedPiece.attackMoves)
+        foreach (int attackMove in GameModel.CurrentClickedPiece.attackMoves)
         {
             TilesMap.Instance.SetTileOrigColor(attackMove);
         }
@@ -174,9 +200,10 @@ public class BoardController : MonoBehaviour
     /// Perform the player's turn action. 
     /// </summary>
     /// <param name="targetTileIdx"> The target tile index of the currently selected piece. </param>
+    /// <param name="attackedPiece"> [optional] If this was an attack move, this is the attacked piece. </param>
     private void SetPlayAction(int targetTileIdx, Piece attackedPiece = null)
     {
-        print("SetPlayAction: from " + CurrentClickedPiece.pieceData.currentIndex + " to " + targetTileIdx);
+        print("SetPlayAction: from " + GameModel.CurrentClickedPiece.pieceData.currentIndex + " to " + targetTileIdx);
 
         // Disable anymore player actions intill we set the other user's turn.
         turnDisabled = true;
@@ -187,36 +214,48 @@ public class BoardController : MonoBehaviour
             if (attackedPiece.pieceData.isKing)
             {
                 SetUserEndGameText();
-                GameIsOver = true;
+                GameModel.GameIsOver = true;
             }
         }
 
-        CurrentClickedPiece.pieceData.madeFirstMove = true;
+        // Complete the current piece's move.
+        GameModel.CurrentClickedPiece.pieceData.madeFirstMove = true;
         UnpickCurrentPieceMarkers();
         UnpickCurrentPieceMaterial();
-        int previousTileIdx = CurrentClickedPiece.pieceData.currentIndex;
-        MovePiece(previousTileIdx, targetTileIdx, CurrentClickedPiece);
-
-        if (CurrentClickedPiece.pieceData.hasPostPlayAction)
+        int previousTileIdx = GameModel.CurrentClickedPiece.pieceData.currentIndex;
+        MovePiece(previousTileIdx, targetTileIdx, GameModel.CurrentClickedPiece);
+        
+        // If the current piece has post play action, like a pawn promotion then play it. Otheriwse set the next player's turn. 
+        if (GameModel.CurrentClickedPiece.pieceData.hasPostPlayAction)
         {
-            CurrentClickedPiece.SetPostPlayAction(previousTileIdx, targetTileIdx);
+            GameModel.CurrentClickedPiece.SetPostPlayAction(previousTileIdx, targetTileIdx);
         }
         else
         {
             SetNextPlayerTurn();
         }
-
-        CurrentClickedPiece = null;
     }
 
+    /// <summary>
+    /// Called once a player completed his turn. Update the moves of all the pieces and set the next player's turn.
+    /// </summary>
     public void SetNextPlayerTurn()
     {
-        if (!GameIsOver)
+        GameModel.SetAllPiecesMoves(true);
+        bool isPlayerChecked = CheckIfPlayerIsChecked(GameModel.PlayerTurnIdx * -1);
+        
+        // If this player that just moved was in check, then he must have made a valid move - to not be in check anymore.
+        GameModel.SetCheckStatus(GameModel.PlayerTurnIdx, false);
+
+        print("isPlayerChecked = " + isPlayerChecked.ToString());
+        GameModel.SetCheckStatus(GameModel.PlayerTurnIdx * -1, isPlayerChecked);
+        GameModel.CurrentClickedPiece = null;
+
+        if (!GameModel.GameIsOver)
         {
-            //print("SetNextPlayerTurn");
-            MoveCount++;
+            GameModel.MoveCount++;
             turnDisabled = false;
-            PlayerTurnIdx *= -1;
+            GameModel.PlayerTurnIdx *= -1;
             SetUserTurnText();
         }
     }
@@ -231,7 +270,6 @@ public class BoardController : MonoBehaviour
     {
         TilesMap.Instance.UpdateTile(previousTileIdx, true);
         TilesMap.Instance.UpdateTile(newTileIdx, false);
-
         TilesMap.Instance.UpdateTile(previousTileIdx, 0);
         TilesMap.Instance.UpdateTile(newTileIdx, piece.pieceData.playerIdx);
 
@@ -248,9 +286,9 @@ public class BoardController : MonoBehaviour
     /// <param name="playerIdx"> The player index of the desired piece. </param>
     /// <param name="tileIdx"> The tile index to check the piece on. </param>
     /// <returns> The piece on the given tile index or null. </returns>
-    private Piece GetPieceAtTileIdx(int playerIdx, int tileIdx)
+    public Piece GetPieceAtTileIdx(int playerIdx, int tileIdx)
     {
-        Transform parentTransform = (playerIdx == 1) ? playerOne.transform : playerTwo.transform;
+        Transform parentTransform = GameModel.GetPlayerParentObj(playerIdx).transform;
         foreach (Transform child in parentTransform)
         {
             if (child.GetComponent<Piece>().pieceData.currentIndex == tileIdx)
@@ -267,7 +305,7 @@ public class BoardController : MonoBehaviour
     /// </summary>
     public void SetUserTurnText()
     {
-        userTxt.text = GetCurrentPlayerName() + " player turn";
+        userTxt.text = GameModel.GetCurrentPlayerName() + "'s  turn";
     }
 
     /// <summary>
@@ -275,31 +313,7 @@ public class BoardController : MonoBehaviour
     /// </summary>
     private void SetUserEndGameText()
     {
-        userTxt.text = GetCurrentPlayerName() + " player WON!";
-    }
-
-    /// <summary>
-    /// Conversion from the player's index of 1, -1 to a string representations.
-    /// </summary>
-    public string GetPlayerName(int playerIdx)
-    {
-        string playerName;
-
-        if (playerIdx == 1)
-        {
-            playerName = "White";
-        }
-        else
-        {
-            playerName = "Black";
-        }
-        
-        return playerName;
-    }
-
-    public string GetCurrentPlayerName()
-    {
-        return GetPlayerName(PlayerTurnIdx);
+        userTxt.text = GameModel.GetCurrentPlayerName() + " WON!";
     }
 
     /// <summary>
@@ -308,7 +322,7 @@ public class BoardController : MonoBehaviour
     private void UnpickCurrentPieceMaterial()
     {
         // We change the first child, because a piece only contains 1 child with the graphic representation of the piece.
-        GameObject child = CurrentClickedPiece.gameObject.transform.GetChild(0).gameObject;
+        GameObject child = GameModel.CurrentClickedPiece.gameObject.transform.GetChild(0).gameObject;
         child.GetComponent<Renderer>().material = originalMaterial;
     }
 
@@ -318,65 +332,8 @@ public class BoardController : MonoBehaviour
     private void SetSelectedMaterial()
     {
         // We change the first child, because a piece only contains 1 child with the graphic representation of the piece.
-        GameObject child = CurrentClickedPiece.gameObject.transform.GetChild(0).gameObject;
+        GameObject child = GameModel.CurrentClickedPiece.gameObject.transform.GetChild(0).gameObject;
         child.GetComponent<Renderer>().material = selectedMaterial;
-    }
-
-    /// <summary>
-    /// Get a list of all the pieces.
-    /// </summary>
-    public List<Piece> GetAllPieces()
-    {
-        List<Piece> pieces = new List<Piece>();
-        Transform parentTransform = playerOne.transform;
-        foreach (Transform child in parentTransform)
-        {
-            pieces.Add(child.GetComponent<Piece>());
-        }
-
-        parentTransform = playerTwo.transform;
-        foreach (Transform child in parentTransform)
-        {
-            pieces.Add(child.GetComponent<Piece>());
-        }
-
-        return pieces;
-    }
-
-    /// <summary>
-    /// Get a list of all the pieces data.
-    /// </summary>
-    public List<PieceData> GetAllPiecesData()
-    {
-        List<PieceData> piecesData = new List<PieceData>();
-        Transform parentTransform = playerOne.transform;
-        Piece currentPiece;
-        foreach (Transform child in parentTransform)
-        {
-            currentPiece = child.GetComponent<Piece>();
-            piecesData.Add(currentPiece.pieceData);
-        }
-
-        parentTransform = playerTwo.transform;
-        foreach (Transform child in parentTransform)
-        {
-            currentPiece = child.GetComponent<Piece>();
-            piecesData.Add(currentPiece.pieceData);
-        }
-
-        return piecesData;
-    }
-
-    public GameObject GetParentObjByPlayerIdx(int playerIdx)
-    {
-        if (playerIdx == 1)
-        {
-            return playerOne;
-        }
-        else
-        {
-            return playerTwo;
-        }
     }
 
     /// <summary>
@@ -392,9 +349,11 @@ public class BoardController : MonoBehaviour
 
         Piece currentPiece;
         Tile currentTile;
-        foreach (Transform child in playerOne.transform)
+        foreach (Transform child in GameModel.GetPlayerParentObj(GameModel.PlayerTurnIdx).transform)
         {
             currentPiece = child.GetComponent<Piece>();
+            if (currentPiece.pieceData.isDead)
+                return;
 
             TilesMap.Instance.UpdateTile(currentPiece.pieceData.currentIndex, false);
             TilesMap.Instance.UpdateTile(currentPiece.pieceData.currentIndex, currentPiece.pieceData.playerIdx);
@@ -403,11 +362,14 @@ public class BoardController : MonoBehaviour
             currentPiece.transform.position = currentTile.tile.transform.position;
             currentPiece.moves.Clear();
             currentPiece.attackMoves.Clear();
+            currentPiece.SetMoves(true);
         }
 
-        foreach (Transform child in playerTwo.transform)
+        foreach (Transform child in GameModel.GetPlayerParentObj(GameModel.PlayerTurnIdx).transform)
         {
             currentPiece = child.GetComponent<Piece>();
+            if (currentPiece.pieceData.isDead)
+                return;
 
             TilesMap.Instance.UpdateTile(currentPiece.pieceData.currentIndex, false);
             TilesMap.Instance.UpdateTile(currentPiece.pieceData.currentIndex, currentPiece.pieceData.playerIdx);
@@ -416,8 +378,35 @@ public class BoardController : MonoBehaviour
             currentPiece.transform.position = currentTile.tile.transform.position;
             currentPiece.moves.Clear();
             currentPiece.attackMoves.Clear();
+            currentPiece.SetMoves(true);
         }
 
-        CurrentClickedPiece = null;
+        GameModel.CurrentClickedPiece = null;
+    }
+
+    /// <summary>
+    /// Check if the given player's king in check.
+    /// </summary>
+    /// <param name="playerIdx"> The player to handle its check status. </param>
+    public bool CheckIfPlayerIsChecked(int playerIdx)
+    {
+        print("CheckIfPlayerIsChecked");
+
+        List<Piece> threatPieces = GameModel.GetPlayerPieces(playerIdx * -1);
+        foreach (Piece threatPiece in threatPieces)
+        {
+            if (!threatPiece.pieceData.isDead)
+            {
+                foreach (int attackMove in threatPiece.attackMoves)
+                {
+                    Piece pieceUnderAttack = GetPieceAtTileIdx(playerIdx, attackMove);
+                    if (pieceUnderAttack.pieceData.isKing)
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 }

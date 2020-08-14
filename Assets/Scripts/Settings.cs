@@ -37,9 +37,10 @@ public class Settings : MonoBehaviour
         print("Settings: OnSaveClicked");
 
         // Save all the piece's data and the current turn.
-        lastSavedGame.allPiecesData = BoardController.Instance.GetAllPiecesData();
-        lastSavedGame.playerTurnIdx = BoardController.Instance.PlayerTurnIdx;
+        lastSavedGame.allPiecesData = BoardController.Instance.GameModel.GetAllPiecesData();
+        lastSavedGame.playerTurnIdx = BoardController.Instance.GameModel.PlayerTurnIdx;
 
+        // overwrite the gamesave.save file with the saved data.
         BinaryFormatter bf = new BinaryFormatter();
         FileStream file = File.Create(Application.persistentDataPath + "/gamesave.save");
         bf.Serialize(file, lastSavedGame);
@@ -70,7 +71,7 @@ public class Settings : MonoBehaviour
         // All the pieces in hierarchy.
         // If the saved piece is in the hierarchy - then just update its data.
         // Else - Create a new piece and set under the hierarchy.
-        List<Piece> allPiecesInHierarchy = BoardController.Instance.GetAllPieces();
+        List<Piece> allPiecesInHierarchy = BoardController.Instance.GameModel.GetAllPieces();
 
         foreach (Piece piece in allPiecesInHierarchy)
         {
@@ -98,14 +99,14 @@ public class Settings : MonoBehaviour
         }
 
         // Create all the saved pieces that don't exist in the hierarchy.
-        string currentPlayerName;
+        string currentPlayerId;
         GameObject newPiece, parentObj;
         foreach (PieceData pieceData in lastSavedGame.allPiecesData)
         {
-            currentPlayerName = BoardController.Instance.GetPlayerName(pieceData.playerIdx);
-            print("Instantiate " + currentPlayerName + "/" + pieceData.prefabName);
-            newPiece = Instantiate(Resources.Load(currentPlayerName + "/" + pieceData.prefabName) as GameObject);
-            parentObj = BoardController.Instance.GetParentObjByPlayerIdx(pieceData.playerIdx);
+            currentPlayerId = BoardController.Instance.GameModel.GetPlayerId(pieceData.playerIdx);
+            print("Instantiate " + currentPlayerId + "/" + pieceData.prefabName);
+            newPiece = Instantiate(Resources.Load(currentPlayerId + "/" + pieceData.prefabName) as GameObject);
+            parentObj = BoardController.Instance.GameModel.GetPlayerParentObj(pieceData.playerIdx);
             newPiece.name = pieceData.gameObjectName;
             newPiece.transform.SetParent(parentObj.transform);
 
@@ -116,7 +117,7 @@ public class Settings : MonoBehaviour
         BoardController.Instance.ResetBoardPieces();
 
         // Set the turn according to the saved state turn.
-        BoardController.Instance.PlayerTurnIdx = lastSavedGame.playerTurnIdx;
+        BoardController.Instance.GameModel.PlayerTurnIdx = lastSavedGame.playerTurnIdx;
         BoardController.Instance.SetUserTurnText();
         
         CloseSettings();

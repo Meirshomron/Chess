@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 
+[System.Serializable]
 public class Tile
 {
     public GameObject tile;
@@ -19,7 +20,7 @@ public class TilesMap : MonoBehaviour
     public static int totalColomns = 8;
     public static int totalRows = 8;
 
-    private Tile[] tilesArr;
+    [SerializeField] private Tile[] tilesArr;
     private float startingX;
     private float startingY;
 

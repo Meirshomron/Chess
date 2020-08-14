@@ -1,5 +1,8 @@
 ﻿
 
+using System.Collections.Generic;
+using UnityEngine;
+
 public class King : Piece
 {
     protected override void Start()
@@ -8,9 +11,13 @@ public class King : Piece
         pieceData.isKing = true;
     }
 
-    public override void SetMoves()
+    public override void SetMoves(bool validateMoves)
     {
         //print("King: SetMoves");
+
+        // Clear the current moves before re-calculating.
+        moves.Clear();
+        attackMoves.Clear();
 
         int tileIdx;
         int currentRow = pieceData.currentIndex / TilesMap.totalRows;
@@ -27,6 +34,13 @@ public class King : Piece
                     AddMoveToList(tileIdx);
                 }
             }
+        }
+
+        // This flag enables us to control the need to validate this piece's moves on the chack status of the player.
+        if (validateMoves)
+        {
+            ValidateMoves();
+            ValidateAttackMoves();
         }
     }
 }
