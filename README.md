@@ -10,6 +10,9 @@ I'm a developer and worked on this game independently. The graphical aspects of 
 
 To run the project, download/clone and run from unity.
 
+<a href="https://meirshomron.github.io/MakingOfCess.html">Making Of Chess Article</a>
+
+
 ## Game Flow
 <img  src="Images/Chess_5.png" width="1100" >
 
